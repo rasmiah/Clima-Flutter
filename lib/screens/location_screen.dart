@@ -12,11 +12,16 @@ class LocationScreen extends StatefulWidget {
 
 class _LocationScreenState extends State<LocationScreen> {
   WeatherModel weatherModel = WeatherModel();
+  bool _showCelsius = true; // true = show °C, false = show °F
 
 int? temp;
 String? weatherIcon;
 String? cityName;
 String? weatherMessage;
+int? _humidity;
+int? _pressure;
+double? _wind; // m/s
+
   @override
   void initState() {
     // TODO: implement initState
@@ -36,11 +41,21 @@ String? weatherMessage;
     final int condition = weatherData['weather'][0]['id']; // e.g., 721 (Haze)
     final String name = weatherData['name'];
 
+    final main = weatherData['main'] as Map<String, dynamic>;
+    final wind = (weatherData['wind'] as Map?) ?? const {};
+    final int? humidity = main['humidity'];
+    final int? pressure = main['pressure'];
+    final double? windSpd = (wind['speed'] as num?)?.toDouble();
+
     setState(() {
       temp = t.round();                          // -> int °C
       weatherIcon = weatherModel.getWeatherIcon(condition);
       weatherMessage = weatherModel.getMessage(temp!);
       cityName = name;
+
+      _humidity = humidity;
+      _pressure = pressure;
+      _wind = windSpd;
     });
 
     // Debug (see exactly what you're passing)
@@ -80,6 +95,15 @@ String? weatherMessage;
                     ),
                   ),
                   TextButton(
+                    onPressed: () {
+                      setState(() => _showCelsius = !_showCelsius);
+                    },
+                    child: Text(
+                      _showCelsius ? '°C' : '°F',
+                      style: const TextStyle(fontSize: 20.0),
+                    ),
+                  ),
+                  TextButton(
                     onPressed: () async {
                       var typedName = await Navigator.push(context, MaterialPageRoute(builder: (context){
                         return CityScreen();
@@ -97,16 +121,39 @@ String? weatherMessage;
                 ],
               ),
               Padding(
-                padding: EdgeInsets.only(left: 15.0),
-                child: Row(
+                padding: const EdgeInsets.only(left: 15.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text(
-                      '$temp°',
-                      style: kTempTextStyle,
+                    Row(
+                      children: <Widget>[
+                        Text(
+                          (() {
+                            if (temp == null) return '--°';
+                            final c = temp!;
+                            final display = _showCelsius ? c : ((c * 9 / 5) + 32).round();
+                            return '$display°'; // only the number changes
+                          })(),
+                          style: kTempTextStyle,
+                        ),
+
+                        Text(weatherIcon ?? '', style: kConditionTextStyle),
+                      ],
                     ),
-                    Text(
-                      weatherIcon!,
-                      style: kConditionTextStyle,
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        if (_humidity != null)
+                          _StatChip(label: 'Humidity', value: '${_humidity!}%'),
+                        if (_pressure != null) ...[
+                          const SizedBox(width: 8),
+                          _StatChip(label: 'Pressure', value: '${_pressure!} hPa'),
+                        ],
+                        if (_wind != null) ...[
+                          const SizedBox(width: 8),
+                          _StatChip(label: 'Wind', value: '${_wind!.toStringAsFixed(1)} m/s'),
+                        ],
+                      ],
                     ),
                   ],
                 ),
@@ -126,4 +173,40 @@ String? weatherMessage;
     );
   }
 }
+
+class _StatChip extends StatelessWidget {
+  const _StatChip({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: cs.surface.withOpacity(0.85),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: cs.outline.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: cs.onSurface.withOpacity(0.7),
+              )),
+          const SizedBox(width: 6),
+          Text(value,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: cs.onSurface,
+              )),
+        ],
+      ),
+    );
+  }
+}
+
 

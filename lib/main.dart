@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:clima/screens/loading_screen.dart';
 
-void main() => runApp(MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized(); // 👈 add this
+  runApp( MyApp()); // your app widget
+}
 
 class MyApp extends StatelessWidget {
   @override
